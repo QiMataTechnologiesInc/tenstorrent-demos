@@ -1,0 +1,44 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Validate rules configuration
+  validate-rules:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Validate JSON configuration files
+        run: |
+          echo "Validating rules configuration files..."
+          for json_file in rules/ci.json rules/*/*.json; do
+            if [ -f "$json_file" ]; then
+              echo "Validating $json_file"
+              jq empty "$json_file" || exit 1
+            fi
+          done
+          echo "All JSON files are valid!"
+      
+      - name: Check GUIDELINES.md files exist
+        run: |
+          echo "Checking for required GUIDELINES.md files..."
+          for lang in cpp python dotnet ansible terraform; do
+            if [ ! -f "rules/$lang/GUIDELINES.md" ]; then
+              echo "ERROR: rules/$lang/GUIDELINES.md not found"
+              exit 1
+            fi
+            echo "✓ rules/$lang/GUIDELINES.md exists"
+          done
+          echo "All GUIDELINES.md files present!"
+

@@ -1,0 +1,41 @@
+{
+  "name": "CI/CD Configuration",
+  "description": "Continuous Integration and Deployment pipeline configuration",
+  "platform": "GitHub Actions",
+  "triggers": {
+    "push": ["main", "develop"],
+    "pull_request": ["main", "develop"]
+  },
+  "jobs": {
+    "cpp": {
+      "enabled": true,
+      "steps": ["lint", "build", "test"],
+      "os": ["ubuntu-latest"]
+    },
+    "python": {
+      "enabled": true,
+      "steps": ["lint", "test", "build"],
+      "python_versions": ["3.10", "3.11", "3.12"]
+    },
+    "dotnet": {
+      "enabled": true,
+      "steps": ["restore", "lint", "build", "test"],
+      "dotnet_versions": ["8.0"]
+    },
+    "ansible": {
+      "enabled": true,
+      "steps": ["lint", "syntax-check"],
+      "ansible_versions": ["2.15"]
+    },
+    "terraform": {
+      "enabled": true,
+      "steps": ["fmt-check", "validate", "security-scan"],
+      "terraform_versions": ["1.6"]
+    }
+  },
+  "global": {
+    "timeout_minutes": 30,
+    "concurrency_group": "${{ github.workflow }}-${{ github.ref }}",
+    "cancel_in_progress": true
+  }
+}

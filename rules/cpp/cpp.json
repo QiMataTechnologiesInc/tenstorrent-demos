@@ -1,0 +1,28 @@
+{
+  "name": "C++ Standards",
+  "description": "C++ project configuration using CMake and vcpkg",
+  "build_system": "CMake",
+  "package_manager": "vcpkg",
+  "standards": {
+    "cpp_version": "17",
+    "cmake_minimum": "3.20",
+    "compiler_warnings": [
+      "-Wall",
+      "-Wextra",
+      "-Wpedantic",
+      "-Werror"
+    ]
+  },
+  "vcpkg": {
+    "baseline": "latest",
+    "dependencies": []
+  },
+  "lint": {
+    "tool": "clang-format",
+    "style": "Google"
+  },
+  "test": {
+    "framework": "catch2",
+    "coverage_minimum": 80
+  }
+}

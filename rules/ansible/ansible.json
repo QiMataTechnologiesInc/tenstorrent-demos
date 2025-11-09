@@ -1,0 +1,29 @@
+{
+  "name": "Ansible Standards",
+  "description": "Ansible configuration with ansible-lint and vault support",
+  "ansible_version": "2.15",
+  "lint": {
+    "tool": "ansible-lint",
+    "config": ".ansible-lint",
+    "rules": {
+      "skip_list": [],
+      "warn_list": [],
+      "enable_list": ["yaml"]
+    }
+  },
+  "vault": {
+    "enabled": true,
+    "id_labels": ["dev", "staging", "prod"]
+  },
+  "structure": {
+    "inventories": "inventories/",
+    "playbooks": "playbooks/",
+    "roles": "roles/",
+    "group_vars": "group_vars/",
+    "host_vars": "host_vars/"
+  },
+  "test": {
+    "tool": "molecule",
+    "driver": "docker"
+  }
+}
