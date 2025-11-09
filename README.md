@@ -46,21 +46,31 @@ The `make init` command will:
 
 ```
 tenstorrent-demos/
-├── rules/              # Source of truth for all configurations
-│   ├── cpp.json        # C++ standards
-│   ├── python.json     # Python standards
-│   ├── dotnet.json     # .NET standards
-│   ├── ansible.json    # Ansible standards
-│   ├── terraform.json  # Terraform standards
-│   └── ci.json         # CI/CD configuration
-├── cpp/                # C++ demos (CMake + vcpkg)
-├── python/             # Python demos (pyproject.toml + ruff/mypy)
-├── dotnet/             # .NET demos (analyzers)
-├── ansible/            # Ansible playbooks (ansible-lint + vault)
-├── terraform/          # Terraform modules (checkov)
+├── rules/                    # Source of truth for all configurations
+│   ├── cpp/                  # C++ standards and guidelines
+│   │   ├── GUIDELINES.md     # C++ development guidelines for agents
+│   │   └── cpp.json          # C++ configuration
+│   ├── python/               # Python standards and guidelines
+│   │   ├── GUIDELINES.md     # Python development guidelines for agents
+│   │   └── python.json       # Python configuration
+│   ├── dotnet/               # .NET standards and guidelines
+│   │   ├── GUIDELINES.md     # .NET development guidelines for agents
+│   │   └── dotnet.json       # .NET configuration
+│   ├── ansible/              # Ansible standards and guidelines
+│   │   ├── GUIDELINES.md     # Ansible development guidelines for agents
+│   │   └── ansible.json      # Ansible configuration
+│   ├── terraform/            # Terraform standards and guidelines
+│   │   ├── GUIDELINES.md     # Terraform development guidelines for agents
+│   │   └── terraform.json    # Terraform configuration
+│   └── ci.json               # CI/CD configuration
+├── cpp/                      # C++ demos (CMake + vcpkg)
+├── python/                   # Python demos (pyproject.toml + ruff/mypy)
+├── dotnet/                   # .NET demos (analyzers)
+├── ansible/                  # Ansible playbooks (ansible-lint + vault)
+├── terraform/                # Terraform modules (checkov)
 ├── .github/
-│   └── workflows/      # CI/CD pipelines
-└── Makefile            # Project automation
+│   └── workflows/            # CI/CD pipelines
+└── Makefile                  # Project automation
 ```
 
 ## Development Workflow
@@ -106,13 +116,20 @@ The pipeline is defined in `.github/workflows/ci.yml` and dynamically configures
 
 ## Rules Directory
 
-The `/rules` directory contains JSON configuration files that define standards for each project type:
+The `/rules` directory contains language-specific subdirectories that serve as the source of truth:
 
-- **cpp.json** - CMake version, C++ standard, compiler flags, vcpkg dependencies
-- **python.json** - Python version, ruff/mypy configuration, test coverage requirements
-- **dotnet.json** - .NET version, analyzer packages, build configuration
-- **ansible.json** - Ansible version, ansible-lint rules, vault configuration
-- **terraform.json** - Terraform version, tflint rules, checkov security policies
+Each language directory contains:
+- **GUIDELINES.md** - Comprehensive development guidelines for agents and developers
+- **<language>.json** - Machine-readable configuration standards
+
+Language directories:
+- **`cpp/`** - CMake version, C++ standard, compiler flags, vcpkg dependencies, coding conventions
+- **`python/`** - Python version, ruff/mypy configuration, test coverage requirements, type hinting standards
+- **`dotnet/`** - .NET version, analyzer packages, build configuration, XML documentation standards
+- **`ansible/`** - Ansible version, ansible-lint rules, vault configuration, playbook structure
+- **`terraform/`** - Terraform version, tflint rules, checkov security policies, module organization
+
+The GUIDELINES.md files provide detailed instructions for agents on how to work with each language in this repository.
 - **ci.json** - CI/CD pipeline configuration
 
 These files are the single source of truth and are read by:

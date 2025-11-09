@@ -10,16 +10,33 @@ The `/rules` directory serves as the single source of truth for:
 - Testing requirements
 - Deployment specifications
 - CI/CD pipeline definitions
+- Language-specific guidelines for agents
 
 ## Structure
 
-- `cpp.json` - C++ project standards (CMake, vcpkg)
-- `python.json` - Python project standards (ruff, mypy)
-- `dotnet.json` - .NET project standards (analyzers)
-- `ansible.json` - Ansible standards (ansible-lint, vault)
-- `terraform.json` - Terraform standards (modules, checkov)
-- `ci.json` - CI/CD configuration
+Each language has its own subdirectory containing:
+- **`<language>/GUIDELINES.md`** - Comprehensive guidelines for that language
+- **`<language>/<language>.json`** - Machine-readable configuration standards
+
+### Language Directories
+
+- **`cpp/`** - C++ standards (CMake, vcpkg, clang-format)
+- **`python/`** - Python standards (ruff, mypy, pytest)
+- **`dotnet/`** - .NET standards (analyzers, xUnit)
+- **`ansible/`** - Ansible standards (ansible-lint, vault)
+- **`terraform/`** - Terraform standards (modules, checkov, tflint)
+
+### CI/CD Configuration
+
+- **`ci.json`** - CI/CD pipeline configuration
 
 ## Usage
 
-CI pipelines and local development tools read these files to ensure consistency across all projects in the monorepo.
+### For Agents
+Agents should read the GUIDELINES.md files to understand language-specific standards, conventions, and best practices when working with code in this repository.
+
+### For CI/CD
+CI pipelines and local development tools read the JSON configuration files to ensure consistency across all projects in the monorepo.
+
+### For Developers
+Developers should reference both the guidelines and JSON configs to understand project standards and tooling requirements.
