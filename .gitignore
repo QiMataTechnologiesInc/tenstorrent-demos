@@ -1,0 +1,65 @@
+# Build artifacts
+**/build/
+**/bin/
+**/obj/
+**/out/
+**/target/
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+
+# Dependencies
+**/node_modules/
+**/vcpkg_installed/
+**/.vcpkg/
+
+# Python
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/*.so
+**/.Python
+**/venv/
+**/env/
+**/.venv/
+**/.env/
+**/*.egg-info/
+**/.eggs/
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/htmlcov/
+**/.coverage
+**/.coverage.*
+**/coverage.xml
+
+# .NET
+**/[Bb]in/
+**/[Oo]bj/
+**/*.user
+**/*.userosscache
+**/*.suo
+**/*.cache
+**/.vs/
+
+# IDE
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/*~
+.DS_Store
+
+# Logs
+**/*.log
+
+# Ansible
+**/vault.yml
+!**/vault.yml.example
+**/.ansible/
+
+# Temporary files
+**/tmp/
+**/temp/
+**/*.tmp

@@ -1,0 +1,7 @@
+# Ansible Vault Example
+# To create: ansible-vault create group_vars/all/vault.yml
+# To edit: ansible-vault edit group_vars/all/vault.yml
+
+# Example encrypted variables (create with ansible-vault):
+# vault_api_key: "secret-key-here"
+# vault_db_password: "secret-password-here"

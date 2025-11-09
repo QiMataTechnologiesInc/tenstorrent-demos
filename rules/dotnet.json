@@ -1,0 +1,31 @@
+{
+  "name": ".NET Standards",
+  "description": ".NET project configuration with analyzers",
+  "dotnet_version": "8.0",
+  "target_framework": "net8.0",
+  "analyzers": {
+    "enabled": true,
+    "packages": [
+      "Microsoft.CodeAnalysis.NetAnalyzers",
+      "StyleCop.Analyzers",
+      "SonarAnalyzer.CSharp"
+    ],
+    "rules": {
+      "TreatWarningsAsErrors": true,
+      "AnalysisLevel": "latest",
+      "EnforceCodeStyleInBuild": true
+    }
+  },
+  "lint": {
+    "tool": "dotnet format",
+    "verify_no_changes": true
+  },
+  "test": {
+    "framework": "xUnit",
+    "coverage_minimum": 80
+  },
+  "build": {
+    "configuration": "Release",
+    "platforms": ["AnyCPU"]
+  }
+}

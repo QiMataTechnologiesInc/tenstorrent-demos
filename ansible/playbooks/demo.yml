@@ -1,0 +1,31 @@
+---
+# Demo playbook for Tenstorrent
+- name: Tenstorrent Demo Playbook
+  hosts: all
+  gather_facts: true
+
+  vars:
+    demo_message: "Hello from Tenstorrent Ansible Demo!"
+
+  tasks:
+    - name: Display demo message
+      ansible.builtin.debug:
+        msg: "{{ demo_message }}"
+
+    - name: Ensure demo directory exists
+      ansible.builtin.file:
+        path: /tmp/tenstorrent-demo
+        state: directory
+        mode: '0755'
+
+    - name: Create demo file
+      ansible.builtin.copy:
+        content: |
+          Tenstorrent Demo File
+          Created at: {{ ansible_date_time.iso8601 }}
+        dest: /tmp/tenstorrent-demo/info.txt
+        mode: '0644'
+
+    - name: Display system information
+      ansible.builtin.debug:
+        msg: "Running on {{ ansible_distribution }} {{ ansible_distribution_version }}"

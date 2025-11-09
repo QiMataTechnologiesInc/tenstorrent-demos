@@ -1,0 +1,198 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Read rules configuration
+  read-rules:
+    runs-on: ubuntu-latest
+    outputs:
+      cpp-enabled: ${{ steps.config.outputs.cpp-enabled }}
+      python-enabled: ${{ steps.config.outputs.python-enabled }}
+      dotnet-enabled: ${{ steps.config.outputs.dotnet-enabled }}
+      ansible-enabled: ${{ steps.config.outputs.ansible-enabled }}
+      terraform-enabled: ${{ steps.config.outputs.terraform-enabled }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Read CI configuration
+        id: config
+        run: |
+          echo "cpp-enabled=$(jq -r '.jobs.cpp.enabled' rules/ci.json)" >> $GITHUB_OUTPUT
+          echo "python-enabled=$(jq -r '.jobs.python.enabled' rules/ci.json)" >> $GITHUB_OUTPUT
+          echo "dotnet-enabled=$(jq -r '.jobs.dotnet.enabled' rules/ci.json)" >> $GITHUB_OUTPUT
+          echo "ansible-enabled=$(jq -r '.jobs.ansible.enabled' rules/ci.json)" >> $GITHUB_OUTPUT
+          echo "terraform-enabled=$(jq -r '.jobs.terraform.enabled' rules/ci.json)" >> $GITHUB_OUTPUT
+
+  # C++ workflow
+  cpp:
+    needs: read-rules
+    if: needs.read-rules.outputs.cpp-enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang-format
+      
+      - name: Check formatting
+        working-directory: cpp
+        run: |
+          find src tests -name '*.cpp' -o -name '*.h' | xargs clang-format --dry-run --Werror
+      
+      - name: Configure CMake
+        working-directory: cpp
+        run: cmake -B build -S . -G Ninja
+      
+      - name: Build
+        working-directory: cpp
+        run: cmake --build build
+      
+      - name: Test
+        working-directory: cpp
+        run: cd build && ctest --output-on-failure
+
+  # Python workflow
+  python:
+    needs: read-rules
+    if: needs.read-rules.outputs.python-enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        python-version: ['3.10', '3.11', '3.12']
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      
+      - name: Install dependencies
+        working-directory: python
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      
+      - name: Lint with ruff
+        working-directory: python
+        run: |
+          ruff check .
+          ruff format --check .
+      
+      - name: Type check with mypy
+        working-directory: python
+        run: mypy src
+      
+      - name: Test with pytest
+        working-directory: python
+        run: pytest
+
+  # .NET workflow
+  dotnet:
+    needs: read-rules
+    if: needs.read-rules.outputs.dotnet-enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      
+      - name: Restore dependencies
+        working-directory: dotnet
+        run: dotnet restore
+      
+      - name: Check formatting
+        working-directory: dotnet
+        run: dotnet format --verify-no-changes
+      
+      - name: Build
+        working-directory: dotnet
+        run: dotnet build --no-restore --configuration Release
+      
+      - name: Test
+        working-directory: dotnet
+        run: dotnet test --no-build --configuration Release --verbosity normal
+
+  # Ansible workflow
+  ansible:
+    needs: read-rules
+    if: needs.read-rules.outputs.ansible-enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install ansible ansible-lint
+      
+      - name: Lint with ansible-lint
+        working-directory: ansible
+        run: ansible-lint
+      
+      - name: Syntax check
+        working-directory: ansible
+        run: |
+          for playbook in playbooks/*.yml; do
+            ansible-playbook --syntax-check "$playbook"
+          done
+
+  # Terraform workflow
+  terraform:
+    needs: read-rules
+    if: needs.read-rules.outputs.terraform-enabled == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.6'
+      
+      - name: Install checkov
+        run: pip install checkov
+      
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+      
+      - name: Terraform Init
+        working-directory: terraform/environments/dev
+        run: terraform init -backend=false
+      
+      - name: Terraform Validate
+        working-directory: terraform/environments/dev
+        run: terraform validate
+      
+      - name: Security scan with checkov
+        working-directory: terraform
+        run: checkov -d . --config-file .checkov.yml
