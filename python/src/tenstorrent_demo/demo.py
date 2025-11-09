@@ -1,7 +1,5 @@
 """Demo module for Tenstorrent."""
 
-from typing import Any
-
 
 class Demo:
     """A simple demo class."""

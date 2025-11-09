@@ -1,7 +1,5 @@
 """Tests for the Demo class."""
 
-import pytest
-
 from tenstorrent_demo.demo import Demo
 
 

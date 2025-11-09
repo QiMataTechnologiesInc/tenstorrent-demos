@@ -9,23 +9,6 @@ terraform {
   }
 }
 
-variable "environment" {
-  description = "Environment name"
-  type        = string
-}
-
-variable "project_name" {
-  description = "Project name"
-  type        = string
-  default     = "tenstorrent-demo"
-}
-
-variable "tags" {
-  description = "Common tags to apply to all resources"
-  type        = map(string)
-  default     = {}
-}
-
 locals {
   common_tags = merge(
     var.tags,
@@ -68,14 +51,4 @@ resource "aws_s3_bucket_public_access_block" "demo" {
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
-}
-
-output "bucket_name" {
-  description = "Name of the S3 bucket"
-  value       = aws_s3_bucket.demo.id
-}
-
-output "bucket_arn" {
-  description = "ARN of the S3 bucket"
-  value       = aws_s3_bucket.demo.arn
 }

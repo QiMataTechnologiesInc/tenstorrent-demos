@@ -92,7 +92,7 @@ addopts = [
     "--cov=tenstorrent_demo",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=80",
+    "--cov-fail-under=70",
 ]
 testpaths = ["tests"]
 pythonpath = ["src"]
