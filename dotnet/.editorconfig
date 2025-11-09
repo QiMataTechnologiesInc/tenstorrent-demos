@@ -1,8 +1,0 @@
-[*.cs]
-
-# StyleCop settings
-dotnet_diagnostic.SA1633.severity = none  # File header
-dotnet_diagnostic.SA1200.severity = none  # Using directives placement
-
-# Generate XML documentation
-GenerateDocumentationFile = true
