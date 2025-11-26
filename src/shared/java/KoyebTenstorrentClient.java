@@ -9,12 +9,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.logging.Logger;
 
 public class KoyebTenstorrentClient {
     private final HttpClient httpClient;
     private final URI baseUri;
     private final String model;
     private final String apiKey;
+    private final Logger logger;
 
     public static class ChatMessage {
         public final String role;
@@ -41,6 +43,12 @@ public class KoyebTenstorrentClient {
             builder.connectTimeout(timeout);
         }
         this.httpClient = builder.build();
+        this.logger = Logging.getLogger(KoyebTenstorrentClient.class.getName());
+
+        logger.info(
+                () ->
+                        String.format(
+                                "Initialized KoyebTenstorrentClient with base %s and model %s", normalized, model));
     }
 
     public static KoyebTenstorrentClient fromEnvironment(String model) {
@@ -74,6 +82,10 @@ public class KoyebTenstorrentClient {
         if (temperature != null) {
             payload.put("temperature", temperature);
         }
+        logger.fine(
+                () ->
+                        String.format(
+                                "Sending chat completion with %d messages (stream=%s)", messages.size(), stream));
         return post("chat/completions", payload);
     }
 
@@ -88,6 +100,10 @@ public class KoyebTenstorrentClient {
         if (temperature != null) {
             payload.put("temperature", temperature);
         }
+        logger.fine(
+                () ->
+                        String.format(
+                                "Sending text completion (length=%d, stream=%s)", prompt.length(), stream));
         return post("completions", payload);
     }
 
@@ -98,10 +114,15 @@ public class KoyebTenstorrentClient {
         if (dimensions != null) {
             payload.put("dimensions", dimensions);
         }
+        logger.fine(
+                () ->
+                        String.format(
+                                "Sending embeddings request with %d inputs", input.size()));
         return post("embeddings", payload);
     }
 
     private HttpResponse<String> post(String path, Map<String, Object> payload) throws Exception {
+        logger.info(() -> String.format("POST %s", path));
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(baseUri.resolve(path))
                 .header("Content-Type", "application/json")

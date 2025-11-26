@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Tenstorrent.Shared
 {
@@ -14,7 +15,20 @@ namespace Tenstorrent.Shared
         public static WebApplication Build(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            var resolvedLevel = Logging.ResolveLogLevel();
+            builder.Logging.ClearProviders();
+            builder.Logging.SetMinimumLevel(resolvedLevel);
+            builder.Logging.AddSimpleConsole(options =>
+            {
+                options.SingleLine = true;
+                options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
+            });
             var app = builder.Build();
+            var logger = app.Logger;
+
+            logger.LogInformation(
+                "Starting Tenstorrent stub server with log level {Level}",
+                resolvedLevel);
 
             app.MapPost("/v1/chat/completions", async (
                 ChatCompletionRequest request,
@@ -27,6 +41,11 @@ namespace Tenstorrent.Shared
                     request.MaxTokens,
                     request.Temperature,
                     cancellationToken);
+
+                logger.LogDebug(
+                    "Handled chat completion for model {Model} with {MessageCount} messages",
+                    model,
+                    request.Messages?.Count ?? 0);
 
                 var response = new ChatCompletionResponse
                 {
@@ -60,6 +79,11 @@ namespace Tenstorrent.Shared
                     request.Temperature,
                     cancellationToken);
 
+                logger.LogDebug(
+                    "Handled text completion for model {Model} (prompt length {PromptLength})",
+                    model,
+                    request.Prompt?.Length ?? 0);
+
                 var response = new TextCompletionResponse
                 {
                     Id = "cmpl-local-stub",
@@ -90,6 +114,11 @@ namespace Tenstorrent.Shared
                     request.Input ?? Array.Empty<string>(),
                     request.Dimensions,
                     cancellationToken);
+
+                logger.LogDebug(
+                    "Handled embeddings for model {Model} with {InputCount} inputs",
+                    model,
+                    request.Input?.Length ?? 0);
 
                 var response = new EmbeddingsResponse
                 {

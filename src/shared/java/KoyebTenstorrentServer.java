@@ -12,9 +12,13 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public final class KoyebTenstorrentServer {
     private KoyebTenstorrentServer() {}
+
+    private static final Logger LOGGER = Logging.getLogger(KoyebTenstorrentServer.class.getName());
 
     public static HttpServer start(int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -29,6 +33,10 @@ public final class KoyebTenstorrentServer {
                 new EmbeddingsHandler());
         server.setExecutor(null);
         server.start();
+        LOGGER.log(
+                Level.INFO,
+                () -> String.format(
+                        "Tenstorrent stub server listening on port %d with level %s", port, LOGGER.getLevel()));
         return server;
     }
 
@@ -67,6 +75,13 @@ public final class KoyebTenstorrentServer {
             String message = TenstorrentLocalInference.generateChat(model, body);
             long created = Instant.now().getEpochSecond();
 
+            LOGGER.fine(
+                    () ->
+                            String.format(
+                                    "Handling chat completion for model %s (payload length %d)",
+                                    model,
+                                    body.length()));
+
             String response = String.format(
                     "{\"id\":\"chatcmpl-local-stub\",\"object\":\"chat.completion\","
                             + "\"created\":%d,\"model\":\"%s\",\"choices\":[{\"index\":0,"
@@ -89,6 +104,13 @@ public final class KoyebTenstorrentServer {
 
             String completion = TenstorrentLocalInference.generateCompletion(model, body);
             long created = Instant.now().getEpochSecond();
+
+            LOGGER.fine(
+                    () ->
+                            String.format(
+                                    "Handling text completion for model %s (payload length %d)",
+                                    model,
+                                    body.length()));
 
             String response = String.format(
                     "{\"id\":\"cmpl-local-stub\",\"object\":\"text_completion\","
@@ -119,6 +141,13 @@ public final class KoyebTenstorrentServer {
                 }
             }
             vectorBuilder.append(']');
+
+            LOGGER.fine(
+                    () ->
+                            String.format(
+                                    "Handling embeddings for model %s (payload length %d)",
+                                    model,
+                                    body.length()));
 
             String response = String.format(
                     "{\"object\":\"list\",\"data\":[{\"object\":\"embedding\","
