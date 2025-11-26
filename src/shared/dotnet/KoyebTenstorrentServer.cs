@@ -1,0 +1,335 @@
+using System;
+using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+
+namespace Tenstorrent.Shared
+{
+    public static class KoyebTenstorrentServer
+    {
+        public static WebApplication Build(string[] args)
+        {
+            var builder = WebApplication.CreateBuilder(args);
+            var app = builder.Build();
+
+            app.MapPost("/v1/chat/completions", async (
+                ChatCompletionRequest request,
+                CancellationToken cancellationToken) =>
+            {
+                var model = request.Model ?? "local-tenstorrent";
+                var content = await TenstorrentLocalInference.GenerateChatAsync(
+                    model,
+                    request.Messages ?? new List<ChatMessage>(),
+                    request.MaxTokens,
+                    request.Temperature,
+                    cancellationToken);
+
+                var response = new ChatCompletionResponse
+                {
+                    Id = "chatcmpl-local-stub",
+                    Model = model,
+                    Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    Choices = new List<ChatChoice>
+                    {
+                        new()
+                        {
+                            Index = 0,
+                            Message = new ChatMessage { Role = "assistant", Content = content },
+                            FinishReason = "stop",
+                        },
+                    },
+                    Usage = TokenUsage.Zero,
+                };
+
+                return Results.Json(response);
+            });
+
+            app.MapPost("/v1/completions", async (
+                CompletionRequest request,
+                CancellationToken cancellationToken) =>
+            {
+                var model = request.Model ?? "local-tenstorrent";
+                var text = await TenstorrentLocalInference.GenerateCompletionAsync(
+                    model,
+                    request.Prompt ?? string.Empty,
+                    request.MaxTokens,
+                    request.Temperature,
+                    cancellationToken);
+
+                var response = new TextCompletionResponse
+                {
+                    Id = "cmpl-local-stub",
+                    Model = model,
+                    Created = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    Choices = new List<TextChoice>
+                    {
+                        new()
+                        {
+                            Index = 0,
+                            Text = text,
+                            FinishReason = "stop",
+                        },
+                    },
+                    Usage = TokenUsage.Zero,
+                };
+
+                return Results.Json(response);
+            });
+
+            app.MapPost("/v1/embeddings", async (
+                EmbeddingsRequest request,
+                CancellationToken cancellationToken) =>
+            {
+                var model = request.Model ?? "local-tenstorrent";
+                var vector = await TenstorrentLocalInference.GenerateEmbeddingAsync(
+                    model,
+                    request.Input ?? Array.Empty<string>(),
+                    request.Dimensions,
+                    cancellationToken);
+
+                var response = new EmbeddingsResponse
+                {
+                    Object = "list",
+                    Model = model,
+                    Data = new List<EmbeddingResult>
+                    {
+                        new()
+                        {
+                            Object = "embedding",
+                            Index = 0,
+                            Embedding = vector,
+                        },
+                    },
+                    Usage = new EmbeddingUsage { PromptTokens = 0, TotalTokens = 0 },
+                };
+
+                return Results.Json(response);
+            });
+
+            return app;
+        }
+    }
+
+    public static class TenstorrentLocalInference
+    {
+        public static Task<string> GenerateChatAsync(
+            string model,
+            IReadOnlyList<ChatMessage> messages,
+            int? maxTokens,
+            double? temperature,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _ = messages;
+            _ = maxTokens;
+            _ = temperature;
+            return Task.FromResult($"[stub] Run Tenstorrent chat for model {model}.");
+        }
+
+        public static Task<string> GenerateCompletionAsync(
+            string model,
+            string prompt,
+            int? maxTokens,
+            double? temperature,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _ = prompt;
+            _ = maxTokens;
+            _ = temperature;
+            return Task.FromResult($"[stub] Run Tenstorrent completion for model {model}.");
+        }
+
+        public static Task<IReadOnlyList<double>> GenerateEmbeddingAsync(
+            string model,
+            IReadOnlyList<string> input,
+            int? dimensions,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _ = model;
+            _ = input;
+
+            var dim = dimensions ?? 16;
+            var values = new double[dim];
+            return Task.FromResult((IReadOnlyList<double>)values);
+        }
+    }
+
+    public sealed class ChatCompletionRequest
+    {
+        [JsonPropertyName("model")]
+        public string? Model { get; set; }
+
+        [JsonPropertyName("messages")]
+        public List<ChatMessage>? Messages { get; set; }
+
+        [JsonPropertyName("max_tokens")]
+        public int? MaxTokens { get; set; }
+
+        [JsonPropertyName("temperature")]
+        public double? Temperature { get; set; }
+
+        [JsonPropertyName("stream")]
+        public bool Stream { get; set; }
+    }
+
+    public sealed class CompletionRequest
+    {
+        [JsonPropertyName("model")]
+        public string? Model { get; set; }
+
+        [JsonPropertyName("prompt")]
+        public string? Prompt { get; set; }
+
+        [JsonPropertyName("max_tokens")]
+        public int? MaxTokens { get; set; }
+
+        [JsonPropertyName("temperature")]
+        public double? Temperature { get; set; }
+
+        [JsonPropertyName("stream")]
+        public bool Stream { get; set; }
+    }
+
+    public sealed class EmbeddingsRequest
+    {
+        [JsonPropertyName("model")]
+        public string? Model { get; set; }
+
+        [JsonPropertyName("input")]
+        public string[]? Input { get; set; }
+
+        [JsonPropertyName("dimensions")]
+        public int? Dimensions { get; set; }
+    }
+
+    public sealed class ChatMessage
+    {
+        [JsonPropertyName("role")]
+        public string Role { get; set; } = "assistant";
+
+        [JsonPropertyName("content")]
+        public string Content { get; set; } = string.Empty;
+    }
+
+    public sealed class ChatCompletionResponse
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "chat.completion";
+
+        [JsonPropertyName("created")]
+        public long Created { get; set; }
+
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonPropertyName("choices")]
+        public List<ChatChoice> Choices { get; set; } = new();
+
+        [JsonPropertyName("usage")]
+        public TokenUsage Usage { get; set; } = TokenUsage.Zero;
+    }
+
+    public sealed class ChatChoice
+    {
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("message")]
+        public ChatMessage Message { get; set; } = new();
+
+        [JsonPropertyName("finish_reason")]
+        public string FinishReason { get; set; } = "stop";
+    }
+
+    public sealed class TextCompletionResponse
+    {
+        [JsonPropertyName("id")]
+        public string Id { get; set; } = string.Empty;
+
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "text_completion";
+
+        [JsonPropertyName("created")]
+        public long Created { get; set; }
+
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonPropertyName("choices")]
+        public List<TextChoice> Choices { get; set; } = new();
+
+        [JsonPropertyName("usage")]
+        public TokenUsage Usage { get; set; } = TokenUsage.Zero;
+    }
+
+    public sealed class TextChoice
+    {
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+
+        [JsonPropertyName("text")]
+        public string Text { get; set; } = string.Empty;
+
+        [JsonPropertyName("finish_reason")]
+        public string FinishReason { get; set; } = "stop";
+    }
+
+    public sealed class EmbeddingsResponse
+    {
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "list";
+
+        [JsonPropertyName("data")]
+        public List<EmbeddingResult> Data { get; set; } = new();
+
+        [JsonPropertyName("model")]
+        public string Model { get; set; } = string.Empty;
+
+        [JsonPropertyName("usage")]
+        public EmbeddingUsage Usage { get; set; } = new();
+    }
+
+    public sealed class EmbeddingResult
+    {
+        [JsonPropertyName("object")]
+        public string Object { get; set; } = "embedding";
+
+        [JsonPropertyName("embedding")]
+        public IReadOnlyList<double> Embedding { get; set; } = Array.Empty<double>();
+
+        [JsonPropertyName("index")]
+        public int Index { get; set; }
+    }
+
+    public sealed class TokenUsage
+    {
+        [JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+
+        [JsonPropertyName("completion_tokens")]
+        public int CompletionTokens { get; set; }
+
+        [JsonPropertyName("total_tokens")]
+        public int TotalTokens { get; set; }
+
+        public static TokenUsage Zero => new() { PromptTokens = 0, CompletionTokens = 0, TotalTokens = 0 };
+    }
+
+    public sealed class EmbeddingUsage
+    {
+        [JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+
+        [JsonPropertyName("total_tokens")]
+        public int TotalTokens { get; set; }
+    }
+}

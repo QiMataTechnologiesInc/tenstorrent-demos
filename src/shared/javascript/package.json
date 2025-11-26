@@ -1,0 +1,20 @@
+{
+  "name": "@tenstorrent/shared-js",
+  "version": "0.1.0",
+  "description": "Shared JavaScript client for Tenstorrent Koyeb endpoints",
+  "type": "module",
+  "main": "./koyebTenstorrentClient.js",
+  "exports": {
+    ".": "./koyebTenstorrentClient.js",
+    "./client": "./koyebTenstorrentClient.js"
+  },
+  "files": [
+    "koyebTenstorrentClient.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": ["tenstorrent", "koyeb", "openai-compatible", "client"],
+  "license": "Apache-2.0"
+}
