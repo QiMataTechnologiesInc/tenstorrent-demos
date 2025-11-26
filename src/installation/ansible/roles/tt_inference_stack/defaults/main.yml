@@ -1,0 +1,14 @@
+---
+tenstorrent_card_model: "blackhole"
+
+ttnn_package: "ttnn"
+ttnn_version: "0.64.4"
+
+tt_metal_repo: "https://github.com/tenstorrent/tt-metal.git"
+tt_metal_repo_version: "main"
+tt_metal_install_dir: "/opt/tt-metal"
+
+tt_install_extra_requirements: true
+tt_requirements_rel_path: "python_env/requirements-dev.txt"
+
+tt_set_system_env: true

@@ -1,0 +1,102 @@
+---
+- name: Validate supported operating system family
+  assert:
+    that: ansible_os_family in ["Debian", "RedHat", "Fedora"]
+    fail_msg: "tt_inference_stack currently supports Debian/Ubuntu or RedHat/Fedora families."
+
+- name: Build TTNN package name (with optional version)
+  set_fact:
+    ttnn_pkg_spec: >-
+      {{ ttnn_package ~ ('==' ~ ttnn_version if ttnn_version | length > 0 else '') }}
+
+- name: Install Tenstorrent TTNN library
+  pip:
+    name: "{{ ttnn_pkg_spec }}"
+    state: present
+    extra_args: "--upgrade"
+    executable: pip3
+
+- name: Clone TT-Metal repo (for examples/models)
+  git:
+    repo: "{{ tt_metal_repo }}"
+    dest: "{{ tt_metal_install_dir }}"
+    version: "{{ tt_metal_repo_version }}"
+    force: yes
+  register: tt_metal_repo_clone
+
+- name: Check for extra requirements file
+  stat:
+    path: "{{ tt_metal_install_dir }}/{{ tt_requirements_rel_path }}"
+  register: tt_requirements_file
+
+- name: Install extra Python requirements for models
+  pip:
+    requirements: "{{ tt_metal_install_dir }}/{{ tt_requirements_rel_path }}"
+    state: present
+    executable: pip3
+  when:
+    - tt_install_extra_requirements
+    - tt_requirements_file.stat.exists
+
+- name: Fail if extra requirements are requested but missing
+  fail:
+    msg: "Requested extra requirements installation but {{ tt_metal_install_dir }}/{{ tt_requirements_rel_path }} is missing."
+  when:
+    - tt_install_extra_requirements
+    - not tt_requirements_file.stat.exists
+
+- name: Persist ARCH_NAME for Tenstorrent runtime
+  lineinfile:
+    path: /etc/environment
+    create: yes
+    regexp: "^ARCH_NAME="
+    line: "ARCH_NAME={{ tenstorrent_card_model }}"
+  when: tt_set_system_env
+
+- name: Persist TT_METAL_HOME
+  lineinfile:
+    path: /etc/environment
+    regexp: "^TT_METAL_HOME="
+    line: "TT_METAL_HOME={{ tt_metal_install_dir }}"
+  when: tt_set_system_env
+
+- name: Persist PYTHONPATH to include TT_METAL_HOME
+  lineinfile:
+    path: /etc/environment
+    regexp: "^PYTHONPATH="
+    line: >-
+      PYTHONPATH={{ tt_metal_install_dir }}:${PYTHONPATH}
+  when: tt_set_system_env
+
+- name: Install CPU frequency utilities (Debian/Ubuntu)
+  apt:
+    name: cpufrequtils
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Install CPU frequency utilities (RedHat/Fedora)
+  dnf:
+    name: kernel-tools
+    state: present
+  when: ansible_os_family in ["RedHat", "Fedora"]
+
+- name: Set CPU governor to performance
+  command: cpupower frequency-set -g performance
+  register: cpupower_result
+  changed_when: "Setting cpu" in (cpupower_result.stdout | default(''))
+  failed_when: false
+
+- name: Validate TTNN import
+  shell: |-
+    set -euo pipefail
+    python3 - <<'PYCODE'
+    import importlib
+    module = importlib.import_module("ttnn")
+    print(f"Loaded {module.__name__} version {getattr(module, '__version__', 'unknown')}")
+    PYCODE
+  register: ttnn_import_check
+  changed_when: false
+
+- name: Show TTNN import status
+  debug:
+    msg: "{{ ttnn_import_check.stdout | default('ttnn import produced no output') }}"

@@ -1,0 +1,8 @@
+---
+- hosts: tenstorrent_hosts
+  become: yes
+  gather_facts: yes
+  roles:
+    - tt_drivers
+    - tt_inference_stack
+    - { role: tt_model_check, become: false }

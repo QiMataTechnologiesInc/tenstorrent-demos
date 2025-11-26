@@ -1,0 +1,171 @@
+---
+- name: Validate supported operating system family
+  assert:
+    that: ansible_os_family in ["Debian", "RedHat", "Fedora"]
+    fail_msg: "tt_drivers currently supports Debian/Ubuntu or RedHat/Fedora families."
+
+- name: Ensure prerequisite packages (Debian/Ubuntu)
+  apt:
+    update_cache: yes
+    name:
+      - wget
+      - git
+      - python3-pip
+      - dkms
+      - cargo
+      - linux-headers-{{ ansible_kernel }}
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Ensure prerequisite packages (RedHat/Fedora)
+  block:
+    - name: Install EPEL release when available
+      dnf:
+        name: epel-release
+        state: present
+      when: ansible_os_family == "RedHat"
+
+    - name: Install base tools
+      dnf:
+        name:
+          - wget
+          - git
+          - python3-pip
+          - dkms
+          - cargo
+          - kernel-headers
+        state: present
+  when: ansible_os_family in ["RedHat", "Fedora"]
+
+- name: Clone Tenstorrent kernel driver source
+  git:
+    repo: "{{ tenstorrent_kmd_repo }}"
+    dest: "/usr/src/tt-kmd-{{ tenstorrent_kmd_version }}"
+    version: "ttkmd-{{ tenstorrent_kmd_version }}"
+    depth: 1
+    force: yes
+  register: tt_kmd_source
+
+- name: Register TT-KMD with DKMS
+  block:
+    - name: Register DKMS module
+      command: dkms add "/usr/src/tt-kmd-{{ tenstorrent_kmd_version }}"
+      args:
+        creates: "/var/lib/dkms/tenstorrent/{{ tenstorrent_kmd_version }}"
+    rescue:
+      - name: Fail with DKMS registration guidance
+        fail:
+          msg: "Failed to register Tenstorrent DKMS module. Ensure dkms is installed and /usr/src/tt-kmd-{{ tenstorrent_kmd_version }} is intact."
+  when: tt_kmd_source.changed
+
+- name: Build and install TT-KMD via DKMS
+  block:
+    - name: Compile and install driver
+      command: dkms install -m tenstorrent -v "{{ tenstorrent_kmd_version }}"
+    rescue:
+      - name: Fail with DKMS install guidance
+        fail:
+          msg: "DKMS install failed. Review kernel headers for {{ ansible_kernel }} and driver sources, then rerun."
+  when: tt_kmd_source.changed
+
+- name: Load Tenstorrent kernel module
+  community.general.modprobe:
+    name: tenstorrent
+    state: present
+    persistent: true
+
+- name: Install TT-Flash utility
+  pip:
+    name: "git+{{ tt_flash_repo }}"
+    state: latest
+    extra_args: "--upgrade"
+    executable: pip3
+
+- name: Download firmware bundle
+  get_url:
+    url: "{{ tenstorrent_fw_url }}"
+    dest: "/tmp/fw_pack-{{ tenstorrent_fw_version }}.fwbundle"
+    mode: "0644"
+  register: tt_fw_bundle
+
+- name: Flash firmware to Tenstorrent devices
+  command: "tt-flash --fw-tar /tmp/fw_pack-{{ tenstorrent_fw_version }}.fwbundle"
+  register: tt_flash_result
+  changed_when: >-
+    (tt_flash_result.rc in [0, 2]) and (
+      ('successfully' in (tt_flash_result.stdout | lower)) or
+      ('updated' in (tt_flash_result.stdout | lower))
+    )
+  failed_when: >-
+    tt_flash_result.rc not in [0, 2] and 'already up to date' not in (tt_flash_result.stdout | default('') | lower)
+
+- name: Reboot after firmware update
+  reboot:
+    reboot_timeout: 900
+  when:
+    - tt_reboot_after_firmware
+    - tt_flash_result is changed
+
+- name: Download Tenstorrent system tools package
+  get_url:
+    url: "{{ tenstorrent_tools_pkg_url }}"
+    dest: "/tmp/tenstorrent-tools.deb"
+    mode: "0644"
+  register: tt_tools_pkg
+  when: ansible_os_family == "Debian"
+
+- name: Install Tenstorrent system tools package (Debian-family)
+  dpkg:
+    name: "/tmp/tenstorrent-tools.deb"
+    state: present
+  when:
+    - ansible_os_family == "Debian"
+    - tt_tools_pkg.changed
+
+- name: Warn about missing system tools installer for this platform
+  debug:
+    msg: "tenstorrent_tools_pkg_url currently targets Debian-based systems. Provide a platform-specific package for {{ ansible_os_family }}."
+  when: ansible_os_family != "Debian"
+
+- name: Enable hugepages service when available
+  systemd:
+    name: tenstorrent-hugepages.service
+    enabled: true
+    state: started
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Enable 1G hugepages mount when available
+  systemd:
+    name: "dev-hugepages\\x2d1G.mount"
+    enabled: true
+    state: started
+  when:
+    - ansible_os_family == "Debian"
+
+- name: Install topology tool (pip)
+  pip:
+    name: "git+{{ tenstorrent_topology_repo }}"
+    state: latest
+    executable: pip3
+  when: tenstorrent_install_topology_util
+
+- name: Configure topology (if enabled)
+  command: tt-topology -l mesh
+  when: tenstorrent_install_topology_util
+
+- name: Install TT-SMI tool (pip)
+  pip:
+    name: "git+{{ tt_smi_repo }}"
+    state: latest
+    executable: pip3
+
+- name: Run tt-smi to show device status
+  command: tt-smi
+  register: tt_smi_out
+  changed_when: false
+  failed_when: tt_smi_out.rc not in [0, 1]
+
+- name: Display tt-smi output
+  debug:
+    msg: "{{ tt_smi_out.stdout | default('tt-smi produced no output') }}"

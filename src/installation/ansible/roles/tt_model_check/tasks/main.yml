@@ -1,0 +1,27 @@
+---
+- name: Check presence of expected model items
+  stat:
+    path: "{{ tt_model_root_dir }}/{{ item }}"
+  loop: "{{ tt_models_expected }}"
+  register: tt_model_stats
+
+- name: Fail if any expected model is missing
+  fail:
+    msg: >-
+      Expected model '{{ tt_models_expected[idx] }}' is missing at
+      '{{ tt_model_root_dir }}/{{ tt_models_expected[idx] }}'.
+      Ensure it is downloaded/placed before running inference.
+  loop: "{{ tt_model_stats.results }}"
+  loop_control:
+    index_var: idx
+  when: not item.stat.exists
+
+- name: Report found models
+  debug:
+    msg: >-
+      Model '{{ tt_models_expected[idx] }}' found at
+      '{{ tt_model_root_dir }}/{{ tt_models_expected[idx] }}'.
+  loop: "{{ tt_model_stats.results }}"
+  loop_control:
+    index_var: idx
+  when: item.stat.exists
