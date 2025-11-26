@@ -8,6 +8,8 @@ from typing import Any, Dict, Iterable, List
 
 from flask import Flask, jsonify, request
 
+from .logging_utils import configure_logging
+
 Message = Dict[str, str]
 
 
@@ -56,7 +58,13 @@ def create_app(default_model: str | None = None) -> Flask:
     """Build a Flask app that exposes OpenAI-compatible endpoints locally."""
 
     app = Flask(__name__)
+    configure_logging()
+    logger = app.logger
     configured_model = default_model or os.getenv("TT_MODEL", "local-tenstorrent")
+    logger.info(
+        "Starting Tenstorrent Flask app",
+        extra={"model": configured_model, "log_level": logger.level},
+    )
 
     @app.post("/v1/chat/completions")
     def chat_completions() -> Any:
@@ -65,6 +73,16 @@ def create_app(default_model: str | None = None) -> Flask:
         messages = payload.get("messages", [])
         max_tokens = payload.get("max_tokens")
         temperature = payload.get("temperature")
+
+        logger.debug(
+            "Handling chat completion",
+            extra={
+                "message_count": len(messages),
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+        )
 
         content = run_tenstorrent_chat(
             messages,
@@ -97,6 +115,16 @@ def create_app(default_model: str | None = None) -> Flask:
         max_tokens = payload.get("max_tokens")
         temperature = payload.get("temperature")
 
+        logger.debug(
+            "Handling text completion",
+            extra={
+                "prompt_length": len(prompt),
+                "model": model,
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            },
+        )
+
         text = run_tenstorrent_completion(
             prompt,
             model,
@@ -127,6 +155,15 @@ def create_app(default_model: str | None = None) -> Flask:
         model = payload.get("model", configured_model)
         input_texts = payload.get("input", [])
         dimensions = payload.get("dimensions")
+
+        logger.debug(
+            "Handling embeddings",
+            extra={
+                "input_count": len(input_texts),
+                "model": model,
+                "dimensions": dimensions,
+            },
+        )
 
         vector = run_tenstorrent_embedding(input_texts, model, dimensions=dimensions)
 

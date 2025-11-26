@@ -1,3 +1,5 @@
+import { createLogger } from "./logging.js";
+
 const assertNonEmpty = (value, name) => {
   if (!value || String(value).trim() === "") {
     throw new Error(`${name} is required`);
@@ -13,6 +15,14 @@ export class KoyebTenstorrentClient {
     this.apiKey = apiKey ?? "fake";
     this.model = model;
     this.timeoutMs = timeoutMs;
+    this.logger = createLogger("KoyebTTClient");
+
+    this.logger.info("Initialized KoyebTenstorrentClient", {
+      baseUrl: this.baseUrl,
+      model: this.model,
+      timeoutMs: this.timeoutMs,
+      logLevel: this.logger.level,
+    });
   }
 
   static fromEnvironment(model, { baseUrlEnv = "KOYEB_TT_BASE_URL", apiKeyEnv = "KOYEB_TT_API_KEY", defaultApiKey = "fake", timeoutMs } = {}) {
@@ -25,6 +35,12 @@ export class KoyebTenstorrentClient {
   }
 
   async createChatCompletion(messages, { max_tokens, temperature, stream = false } = {}) {
+    this.logger.debug("Sending chat completion request", {
+      messageCount: messages?.length ?? 0,
+      max_tokens,
+      temperature,
+      stream,
+    });
     return this.#post("/chat/completions", {
       model: this.model,
       messages,
@@ -35,6 +51,12 @@ export class KoyebTenstorrentClient {
   }
 
   async createCompletion(prompt, { max_tokens, temperature, stream = false } = {}) {
+    this.logger.debug("Sending text completion request", {
+      promptLength: prompt?.length ?? 0,
+      max_tokens,
+      temperature,
+      stream,
+    });
     return this.#post("/completions", {
       model: this.model,
       prompt,
@@ -45,6 +67,10 @@ export class KoyebTenstorrentClient {
   }
 
   async createEmbeddings(input, { dimensions } = {}) {
+    this.logger.debug("Sending embedding request", {
+      inputCount: input?.length ?? 0,
+      dimensions,
+    });
     return this.#post("/embeddings", {
       model: this.model,
       input,
@@ -58,6 +84,11 @@ export class KoyebTenstorrentClient {
     const timeoutId = this.timeoutMs ? setTimeout(() => controller.abort(), this.timeoutMs) : null;
 
     try {
+      this.logger.info("POSTing Tenstorrent request", {
+        url,
+        path,
+        timeoutMs: this.timeoutMs,
+      });
       const response = await fetch(url, {
         method: "POST",
         headers: {

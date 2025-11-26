@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+import logging
 from typing import Any, Dict, Iterable, Optional
 
 from openai import OpenAI
+
+from .logging_utils import configure_logging, resolve_log_level
 
 
 Message = Dict[str, str]
@@ -30,6 +33,11 @@ class KoyebTenstorrentClient:
 
     def __post_init__(self) -> None:
         normalized_base = self.base_url.rstrip("/")
+        self._logger = logging.getLogger(__name__)
+        self._logger.info(
+            "Initializing KoyebTenstorrentClient",
+            extra={"model": self.model, "base_url": normalized_base},
+        )
         self._client = OpenAI(
             api_key=self.api_key,
             base_url=f"{normalized_base}/v1",
@@ -61,6 +69,18 @@ class KoyebTenstorrentClient:
             )
 
         api_key = os.getenv(api_key_env, default_api_key)
+        configure_logging()
+        logger = logging.getLogger(__name__)
+        logger.debug(
+            "Building client from environment",
+            extra={
+                "model": model,
+                "base_url_env": base_url_env,
+                "api_key_env": api_key_env,
+                "timeout": request_timeout,
+                "log_level": resolve_log_level(None),
+            },
+        )
         return cls(
             base_url=base_url,
             api_key=api_key,
@@ -88,8 +108,18 @@ class KoyebTenstorrentClient:
             **kwargs: Additional parameters forwarded to ``chat.completions.create``.
         """
 
+        messages_list = list(messages)
+        self._logger.debug(
+            "Requesting chat completion",
+            extra={
+                "message_count": len(messages_list),
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": stream,
+            },
+        )
         return self._client.chat.completions.create(
-            messages=list(messages),
+            messages=messages_list,
             model=self.model,
             max_tokens=max_tokens,
             temperature=temperature,
@@ -111,6 +141,15 @@ class KoyebTenstorrentClient:
         Call ``/v1/completions`` on the Koyeb service.
         """
 
+        self._logger.debug(
+            "Requesting text completion",
+            extra={
+                "prompt_length": len(prompt),
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+                "stream": stream,
+            },
+        )
         return self._client.completions.create(
             prompt=prompt,
             model=self.model,
@@ -130,8 +169,13 @@ class KoyebTenstorrentClient:
     ) -> Any:
         """Call ``/v1/embeddings`` on the Koyeb service."""
 
+        inputs = list(input_texts)
+        self._logger.debug(
+            "Requesting embeddings",
+            extra={"input_count": len(inputs), "dimensions": dimensions},
+        )
         return self._client.embeddings.create(
-            input=list(input_texts),
+            input=inputs,
             model=self.model,
             dimensions=dimensions,
             timeout=self.request_timeout,

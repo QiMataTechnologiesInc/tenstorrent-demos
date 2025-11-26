@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Tenstorrent.Shared
 {
@@ -13,13 +14,15 @@ namespace Tenstorrent.Shared
     {
         private readonly HttpClient _httpClient;
         private readonly string _model;
+        private readonly ILogger _logger;
 
         public KoyebTenstorrentClient(
             string baseUrl,
             string apiKey,
             string model,
             TimeSpan? timeout = null,
-            HttpMessageHandler? handler = null)
+            HttpMessageHandler? handler = null,
+            ILoggerFactory? loggerFactory = null)
         {
             if (string.IsNullOrWhiteSpace(baseUrl))
             {
@@ -37,6 +40,13 @@ namespace Tenstorrent.Shared
             {
                 _httpClient.Timeout = timeout.Value;
             }
+
+            var factory = loggerFactory ?? Logging.CreateLoggerFactory();
+            _logger = factory.CreateLogger<KoyebTenstorrentClient>();
+            _logger.LogInformation(
+                "Initialized KoyebTenstorrentClient for {BaseUrl} with model {Model}",
+                normalizedBase,
+                model);
         }
 
         public static KoyebTenstorrentClient FromEnvironment(
@@ -44,7 +54,8 @@ namespace Tenstorrent.Shared
             string baseUrlEnv = "KOYEB_TT_BASE_URL",
             string apiKeyEnv = "KOYEB_TT_API_KEY",
             string defaultApiKey = "fake",
-            TimeSpan? timeout = null)
+            TimeSpan? timeout = null,
+            ILoggerFactory? loggerFactory = null)
         {
             var baseUrl = Environment.GetEnvironmentVariable(baseUrlEnv);
             if (string.IsNullOrWhiteSpace(baseUrl))
@@ -53,7 +64,7 @@ namespace Tenstorrent.Shared
             }
 
             var apiKey = Environment.GetEnvironmentVariable(apiKeyEnv) ?? defaultApiKey;
-            return new KoyebTenstorrentClient(baseUrl, apiKey, model, timeout);
+            return new KoyebTenstorrentClient(baseUrl, apiKey, model, timeout, loggerFactory: loggerFactory);
         }
 
         public Task<HttpResponseMessage> CreateChatCompletionAsync(
@@ -71,6 +82,11 @@ namespace Tenstorrent.Shared
                 ["temperature"] = temperature,
                 ["stream"] = stream,
             };
+
+            _logger.LogDebug(
+                "Sending chat completion request with {MessageCount} messages; stream={Stream}",
+                (messages as ICollection<IDictionary<string, string>>)?.Count ?? 0,
+                stream);
 
             return PostJsonAsync("chat/completions", payload, cancellationToken);
         }
@@ -91,6 +107,11 @@ namespace Tenstorrent.Shared
                 ["stream"] = stream,
             };
 
+            _logger.LogDebug(
+                "Sending text completion request (length={PromptLength}); stream={Stream}",
+                prompt?.Length ?? 0,
+                stream);
+
             return PostJsonAsync("completions", payload, cancellationToken);
         }
 
@@ -106,6 +127,11 @@ namespace Tenstorrent.Shared
                 ["dimensions"] = dimensions,
             };
 
+            _logger.LogDebug(
+                "Sending embeddings request with {InputCount} inputs; dimensions={Dimensions}",
+                (input as ICollection<string>)?.Count ?? 0,
+                dimensions);
+
             return PostJsonAsync("embeddings", payload, cancellationToken);
         }
 
@@ -115,6 +141,7 @@ namespace Tenstorrent.Shared
             CancellationToken cancellationToken)
         {
             var content = new StringContent(JsonSerializer.Serialize(payload, JsonOptions), Encoding.UTF8, "application/json");
+            _logger.LogInformation("POST {Path}", relativePath);
             return _httpClient.PostAsync(relativePath, content, cancellationToken);
         }
 
