@@ -1,0 +1,7 @@
+add_library(koyeb_tenstorrent_client INTERFACE)
+
+find_package(cpr CONFIG REQUIRED)
+
+target_compile_features(koyeb_tenstorrent_client INTERFACE cxx_std_17)
+target_include_directories(koyeb_tenstorrent_client INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(koyeb_tenstorrent_client INTERFACE cpr::cpr)

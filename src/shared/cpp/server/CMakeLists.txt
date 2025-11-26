@@ -1,0 +1,6 @@
+find_package(crow CONFIG REQUIRED)
+
+add_executable(koyeb_tenstorrent_server koyeb_tenstorrent_server.cpp)
+
+target_compile_features(koyeb_tenstorrent_server PRIVATE cxx_std_17)
+target_link_libraries(koyeb_tenstorrent_server PRIVATE Crow::Crow)
