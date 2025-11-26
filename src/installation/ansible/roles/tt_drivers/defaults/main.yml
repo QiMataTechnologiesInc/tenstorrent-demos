@@ -1,0 +1,23 @@
+---
+# Defaults set to current public releases from Tenstorrent documentation.
+tenstorrent_kmd_version: "2.6.1"
+tenstorrent_kmd_repo: "https://github.com/tenstorrent/tt-kmd.git"
+
+# Firmware bundle targeting current Blackhole/Wormhole support
+# Update alongside Tenstorrent release notes when new bundles ship.
+tenstorrent_fw_version: "19.02.0"
+tenstorrent_fw_url: >-
+  https://github.com/tenstorrent/tt-firmware/releases/download/v{{ tenstorrent_fw_version }}/fw_pack-{{ tenstorrent_fw_version }}.fwbundle
+
+# Tenstorrent system tools package (includes hugepages service and tt-smi helper)
+tenstorrent_tools_pkg_url: >-
+  https://github.com/tenstorrent/tt-system-tools/releases/download/v1.3.1/tenstorrent-tools_1.3.1_all.deb
+
+# Optional topology helper
+tenstorrent_install_topology_util: false
+tenstorrent_topology_repo: "https://github.com/tenstorrent/tt-topology.git"
+
+tt_flash_repo: "https://github.com/tenstorrent/tt-flash.git"
+tt_smi_repo: "https://github.com/tenstorrent/tt-smi.git"
+
+tt_reboot_after_firmware: true

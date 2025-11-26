@@ -1,0 +1,7 @@
+---
+tt_model_root_dir: "/opt/tenstorrent/models"
+
+tt_models_expected:
+  - "Llama-70B"
+  - "Falcon-7B"
+  - "ResNet50"
