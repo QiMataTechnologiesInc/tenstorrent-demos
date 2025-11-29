@@ -3,6 +3,7 @@
 from .koyeb_tenstorrent_client import KoyebTenstorrentClient, Message
 from .koyeb_tenstorrent_server import (
     create_app,
+    resolve_card_plan,
     run_tenstorrent_chat,
     run_tenstorrent_completion,
     run_tenstorrent_embedding,
@@ -14,6 +15,7 @@ __all__ = [
     "Message",
     "create_app",
     "configure_logging",
+    "resolve_card_plan",
     "run_tenstorrent_chat",
     "run_tenstorrent_completion",
     "run_tenstorrent_embedding",

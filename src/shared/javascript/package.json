@@ -6,12 +6,17 @@
   "main": "./koyebTenstorrentClient.js",
   "exports": {
     ".": "./koyebTenstorrentClient.js",
-    "./client": "./koyebTenstorrentClient.js"
+    "./client": "./koyebTenstorrentClient.js",
+    "./server": "./koyebTenstorrentServer.js"
   },
   "files": [
     "koyebTenstorrentClient.js",
+    "koyebTenstorrentServer.js",
     "README.md"
   ],
+  "scripts": {
+    "test": "node --check koyebTenstorrentClient.js && node --check koyebTenstorrentServer.js"
+  },
   "engines": {
     "node": ">=18"
   },

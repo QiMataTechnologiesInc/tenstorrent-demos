@@ -10,8 +10,11 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -19,6 +22,14 @@ public final class KoyebTenstorrentServer {
     private KoyebTenstorrentServer() {}
 
     private static final Logger LOGGER = Logging.getLogger(KoyebTenstorrentServer.class.getName());
+    private static final String DEFAULT_MODEL =
+            System.getenv().getOrDefault("TT_MODEL", "local-tenstorrent");
+    private static final List<String> DEFAULT_WORMHOLE_MODELS =
+            List.of(
+                    "meta-llama/llama-3.1-8b-instruct",
+                    "meta-llama/llama-3.1-70b-instruct",
+                    "mistralai/mixtral-8x7b-instruct-v0.1");
+    private static final List<String> WORMHOLE_SUPPORTED_MODELS = loadWormholeSupportedModels();
 
     public static HttpServer start(int port) throws IOException {
         HttpServer server = HttpServer.create(new InetSocketAddress(port), 0);
@@ -35,8 +46,13 @@ public final class KoyebTenstorrentServer {
         server.start();
         LOGGER.log(
                 Level.INFO,
-                () -> String.format(
-                        "Tenstorrent stub server listening on port %d with level %s", port, LOGGER.getLevel()));
+                () ->
+                        String.format(
+                                "Tenstorrent stub server listening on port %d with level %s (default model %s, wormhole-supported models %s)",
+                                port,
+                                LOGGER.getLevel(),
+                                DEFAULT_MODEL,
+                                WORMHOLE_SUPPORTED_MODELS));
         return server;
     }
 
@@ -66,21 +82,51 @@ public final class KoyebTenstorrentServer {
         return matcher.find() ? matcher.group(1) : fallback;
     }
 
+    private static String normalizeModel(String model) {
+        return model == null ? "" : model.trim().toLowerCase();
+    }
+
+    private static List<String> loadWormholeSupportedModels() {
+        String configured = System.getenv("TT_WORMHOLE_SUPPORTED_MODELS");
+        if (configured == null || configured.isBlank()) {
+            return DEFAULT_WORMHOLE_MODELS;
+        }
+
+        return Arrays.stream(configured.split(","))
+                .map(String::trim)
+                .filter(entry -> !entry.isEmpty())
+                .map(String::toLowerCase)
+                .collect(Collectors.toUnmodifiableList());
+    }
+
+    private static List<String> resolveCardPlan(String model, List<String> wormholeModels) {
+        String normalized = normalizeModel(model);
+        for (String supported : wormholeModels) {
+            if (normalized.equals(supported) || normalized.startsWith(supported)) {
+                return List.of("wormhole", "blackhole");
+            }
+        }
+
+        return List.of("blackhole");
+    }
+
     private static final class ChatCompletionsHandler implements HttpHandler {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String body = readBody(exchange);
-            String model = extractModel(body, "local-tenstorrent");
+            String model = extractModel(body, DEFAULT_MODEL);
+            List<String> cards = resolveCardPlan(model, WORMHOLE_SUPPORTED_MODELS);
 
-            String message = TenstorrentLocalInference.generateChat(model, body);
+            String message = TenstorrentLocalInference.generateChat(model, body, cards);
             long created = Instant.now().getEpochSecond();
 
             LOGGER.fine(
                     () ->
                             String.format(
-                                    "Handling chat completion for model %s (payload length %d)",
+                                    "Handling chat completion for model %s (payload length %d) on %s",
                                     model,
-                                    body.length()));
+                                    body.length(),
+                                    cards));
 
             String response = String.format(
                     "{\"id\":\"chatcmpl-local-stub\",\"object\":\"chat.completion\","
@@ -100,17 +146,19 @@ public final class KoyebTenstorrentServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String body = readBody(exchange);
-            String model = extractModel(body, "local-tenstorrent");
+            String model = extractModel(body, DEFAULT_MODEL);
+            List<String> cards = resolveCardPlan(model, WORMHOLE_SUPPORTED_MODELS);
 
-            String completion = TenstorrentLocalInference.generateCompletion(model, body);
+            String completion = TenstorrentLocalInference.generateCompletion(model, body, cards);
             long created = Instant.now().getEpochSecond();
 
             LOGGER.fine(
                     () ->
                             String.format(
-                                    "Handling text completion for model %s (payload length %d)",
+                                    "Handling text completion for model %s (payload length %d) on %s",
                                     model,
-                                    body.length()));
+                                    body.length(),
+                                    cards));
 
             String response = String.format(
                     "{\"id\":\"cmpl-local-stub\",\"object\":\"text_completion\","
@@ -130,9 +178,10 @@ public final class KoyebTenstorrentServer {
         @Override
         public void handle(HttpExchange exchange) throws IOException {
             String body = readBody(exchange);
-            String model = extractModel(body, "local-tenstorrent");
+            String model = extractModel(body, DEFAULT_MODEL);
+            List<String> cards = resolveCardPlan(model, WORMHOLE_SUPPORTED_MODELS);
 
-            double[] embedding = TenstorrentLocalInference.generateEmbedding(model, body);
+            double[] embedding = TenstorrentLocalInference.generateEmbedding(model, body, cards);
             StringBuilder vectorBuilder = new StringBuilder("[");
             for (int i = 0; i < embedding.length; i++) {
                 vectorBuilder.append(embedding[i]);
@@ -145,9 +194,10 @@ public final class KoyebTenstorrentServer {
             LOGGER.fine(
                     () ->
                             String.format(
-                                    "Handling embeddings for model %s (payload length %d)",
+                                    "Handling embeddings for model %s (payload length %d) on %s",
                                     model,
-                                    body.length()));
+                                    body.length(),
+                                    cards));
 
             String response = String.format(
                     "{\"object\":\"list\",\"data\":[{\"object\":\"embedding\","
@@ -167,22 +217,25 @@ public final class KoyebTenstorrentServer {
     private static final class TenstorrentLocalInference {
         private TenstorrentLocalInference() {}
 
-        static String generateChat(String model, String rawRequest) {
+        static String generateChat(String model, String rawRequest, List<String> cards) {
             return String.format(
-                    "[stub] Replace with Tenstorrent chat inference for %s. Request=%s",
+                    "[stub] Replace with Tenstorrent chat inference for %s using %s. Request=%s",
                     model,
+                    String.join(" + ", cards),
                     truncate(rawRequest));
         }
 
-        static String generateCompletion(String model, String rawRequest) {
+        static String generateCompletion(String model, String rawRequest, List<String> cards) {
             return String.format(
-                    "[stub] Replace with Tenstorrent completion for %s. Request=%s",
+                    "[stub] Replace with Tenstorrent completion for %s using %s. Request=%s",
                     model,
+                    String.join(" + ", cards),
                     truncate(rawRequest));
         }
 
-        static double[] generateEmbedding(String model, String rawRequest) {
+        static double[] generateEmbedding(String model, String rawRequest, List<String> cards) {
             // Stub implementation ignores input; replace with Tenstorrent embeddings.
+            Objects.requireNonNull(cards, "cards");
             double[] vector = new double[16];
             Arrays.fill(vector, 0.0);
             return vector;

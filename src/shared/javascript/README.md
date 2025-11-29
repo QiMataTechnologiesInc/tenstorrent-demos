@@ -4,6 +4,7 @@ JavaScript helpers for Tenstorrent workflows using the built-in `fetch` API agai
 
 ## Contents
 - `koyebTenstorrentClient.js`: Fetch-based client for Tenstorrent Cloud services hosted on Koyeb.
+- `koyebTenstorrentServer.js`: Lightweight HTTP server that mirrors the OpenAI-compatible Koyeb endpoints and selects Wormhole + Blackhole cards when supported.
 - `package.json`: Module metadata for consuming the client as a library (ESM).
 
 ## Installation
@@ -34,4 +35,15 @@ const response = await client.createChatCompletion([
   { role: "user", content: "Tell me a joke." },
 ]);
 console.log(await response.json());
+```
+
+## Stub Tenstorrent server
+
+`koyebTenstorrentServer.js` exposes a simple HTTP server mirroring the `/v1` OpenAI endpoints. By default it drives both a Wormhole and Blackhole card when the requested model appears in `TT_WORMHOLE_SUPPORTED_MODELS` (comma-separated, case-insensitive) or matches the built-in defaults. Otherwise it falls back to the Blackhole.
+
+```javascript
+import { startTenstorrentServer } from "@tenstorrent/shared-js/server";
+
+// Starts on TT_SERVER_PORT or 8000 by default
+startTenstorrentServer();
 ```

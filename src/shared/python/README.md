@@ -46,3 +46,15 @@ app.run(host="0.0.0.0", port=8000, debug=True)
 ```
 
 Endpoints mirror the OpenAI wire format so existing Koyeb clients can point at `http://localhost:8000/v1` during development.
+
+## Card selection for shared demo servers
+Shared demo servers pair one **Blackhole** card with one **Wormhole** card. The server prefers to use both cards when the request
+targets a model that the Wormhole supports, and otherwise falls back to the Blackhole alone.
+
+- Configure the Wormhole-capable model list with the `TT_WORMHOLE_SUPPORTED_MODELS` environment variable (comma-separated
+  values). When unset, the server defaults to common shared-demo LLMs such as `meta-llama/Llama-3.1-8B-Instruct` and
+  `mistralai/mixtral-8x7b-instruct-v0.1`.
+- Matching is case-insensitive and uses prefix checks so quantized or suffixed model names still route to both cards when the
+  base model is Wormhole-capable.
+- The selected card plan is logged for each request, and the stub inference functions receive the chosen cards so you can wire
+  them into the actual TT-NN / TT-Metal calls.
